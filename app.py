@@ -57,7 +57,8 @@ thresholdValue = 0.6
 
 #Answers array
 math_answer_array = ['1','2','3','4']
-lang_answer_array = ['අ', 'ආ', 'ඇ','ඈ','ඉ','ඊ','උ','ඌ','එ','ඒ']
+# lang_answer_array = ['අ', 'ආ', 'ඇ','ඈ','ඉ','ඊ','උ','ඌ','එ','ඒ']
+lang_answer_array = ['a', 'aa', 'ea', 'aee', 'e', 'ee', 'u', 'uu', 'ae', 'aee']
 # env_answer_array = ['අලියා','පූසා','බල්ලා','ලේනා','ඇපල්','අඹ','මැංගුස්','අන්නාසි','ගස','තරුව']
 env_answer_array = ['elephant','cat','dog','squirrel','apple','mango','mongoose','pineapple','tree','star']
 # social_answer_array = ["ආයුබෝවන්",
