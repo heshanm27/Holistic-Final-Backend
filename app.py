@@ -58,18 +58,19 @@ thresholdValue = 0.6
 #Answers array
 math_answer_array = ['1','2','3','4']
 lang_answer_array = ['අ', 'ආ', 'ඇ','ඈ','ඉ','ඊ','උ','ඌ','එ','ඒ']
-env_answer_array = ['අලියා','පූසා','බල්ලා','ලේනා','ඇපල්','අඹ','මැංගුස්','අන්නාසි','ගස','තරුව']
-social_answer_array = ["ආයුබෝවන්",
-"උපකාර කරන්න",
-"එක්ඟයි",
-"ඔබව සාදරයෙන් පිලිගන්නවා",
-"කුසගින්න",
-"පිපාසය",
-"සුභ පැතුම්",
-"ස්තූතී",
-"හෙලෝ",
-"හොඳයි"]
-
+# env_answer_array = ['අලියා','පූසා','බල්ලා','ලේනා','ඇපල්','අඹ','මැංගුස්','අන්නාසි','ගස','තරුව']
+env_answer_array = ['elephant','cat','dog','squirrel','apple','mango','mongoose','pineapple','tree','star']
+# social_answer_array = ["ආයුබෝවන්",
+# "උපකාර කරන්න",
+# "එක්ඟයි",
+# "ඔබව සාදරයෙන් පිලිගන්නවා",
+# "කුසගින්න",
+# "පිපාසය",
+# "සුභ පැතුම්",
+# "ස්තූතී",
+# "හෙලෝ",
+# "හොඳයි"]
+social_answer_array=['Ayubowan', 'Isthuthi', 'Hello','Upakara_karanna','Ekagai']
 @app.route('/detection/math/v2', methods=['POST'])
 def math_detection():
     try:
@@ -200,7 +201,7 @@ def lang_detection():
             else:
                 final_answer = False
 
-
+            print("final_answer",final_answer,"predicted_answer",predicted_answer,"actual_answer",actual_answer)
         # return jsonify("{name:hello}")
         return jsonify({"result": final_answer,"predicted": predicted_answer})
 
@@ -269,9 +270,9 @@ def env_detection():
             else:
                 final_answer = False
 
-
+            print("final_answer",final_answer,"predicted_answer",predicted_answer,"actual_answer",actual_answer)
         # return jsonify("{name:hello}")
-        return jsonify({"result": final_answer})
+        return jsonify({"result": final_answer,"predicted": predicted_answer})
 
     except Exception as e:
         logging.error(str(e))
@@ -279,7 +280,7 @@ def env_detection():
 
 
 @app.route('/detection/social/v2', methods=['POST'])
-def env_detection():
+def social_detection():
     try:
         data = request.get_json()
         image_url = data['image_url']
@@ -319,9 +320,9 @@ def env_detection():
                 keypoints = extract_keypoints(results)
 
                 sequence.append(keypoints)
-                sequence = sequence[-40:]
+                sequence = sequence[-30:]
 
-                if len(sequence) == 40:
+                if len(sequence) == 30:
                     res = socialmodel.predict(np.expand_dims(sequence, axis=0))[0]
                     prediction_result = res
                     print(prediction_result) 
@@ -332,7 +333,7 @@ def env_detection():
 
             prediction_result_array = prediction_result.tolist()
             max_index = np.argmax(prediction_result_array)
-            predicted_answer = env_answer_array[max_index]
+            predicted_answer = social_answer_array[max_index]
 
             if predicted_answer == actual_answer:
                 final_answer = True
@@ -340,8 +341,9 @@ def env_detection():
                 final_answer = False
 
 
+            print("final_answer",final_answer,"predicted_answer",predicted_answer,"actual_answer",actual_answer)
         # return jsonify("{name:hello}")
-        return jsonify({"result": final_answer})
+        return jsonify({"result": final_answer,"predicted": predicted_answer})
 
     except Exception as e:
         logging.error(str(e))
