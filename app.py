@@ -58,7 +58,8 @@ thresholdValue = 0.6
 #Answers array
 math_answer_array = ['1','2','3','4']
 # lang_answer_array = ['අ', 'ආ', 'ඇ','ඈ','ඉ','ඊ','උ','ඌ','එ','ඒ']
-lang_answer_array = ['a', 'aa', 'ea', 'aee', 'e', 'ee', 'u', 'uu', 'ae', 'aee']
+# lang_answer_array = ['a', 'aa', 'ea', 'aee', 'e', 'ee', 'u', 'uu', 'ae', 'aee']
+lang_answer_array = ['a','aa','ea','e','ee','u','ae','aee']
 # env_answer_array = ['අලියා','පූසා','බල්ලා','ලේනා','ඇපල්','අඹ','මැංගුස්','අන්නාසි','ගස','තරුව']
 env_answer_array = ['elephant','cat','dog','squirrel','apple','mango','mongoose','pineapple','tree','star']
 # social_answer_array = ["ආයුබෝවන්",
@@ -147,68 +148,144 @@ def lang_detection():
         data = request.get_json()
         image_url = data['image_url']
         actual_answer = data['answer']
-        final_answer = True;
+        final_answer = True
+        correct_prediction_count = 0
 
         # Download the image from the URL
         response = requests.get(image_url)
 
         if not response.content:
             raise ValueError("Empty image content")
+
         # Define the path to save the video
         download_folder = './downloads/'
         os.makedirs(download_folder, exist_ok=True)
-        video_filename = f"video_{uuid.uuid4().hex[:5]}.mp4" 
-        video_path = os.path.join(download_folder,f"video_{uuid.uuid4().hex[:5]}.mp4")
+        video_filename = f"video_{uuid.uuid4().hex[:5]}.mp4"
+        video_path = os.path.join(download_folder, video_filename)
         with open(video_path, 'wb') as f:
             f.write(response.content)
 
         # Holistic Prediction
         cap = cv2.VideoCapture(video_path)
+        total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        frame_count = 0
         sequence = []
-        prediction_result = []
-        prediction_result_array = []
 
-        # Set mediapipe model
+        print("Total frames:", total_frames)
+
+        # Set up the Mediapipe model
+        mp_holistic = mp.solutions.holistic
         with mp_holistic.Holistic(min_detection_confidence=0.5, min_tracking_confidence=0.5) as holistic:
-
-            while cap.isOpened():
-
-                # Read feed
-                ret, frame = cap.read()
-
-                # Make detections
-                image, results = mediapipe_detection(frame, holistic)
-
-                keypoints = extract_keypoints(results)
-
-                sequence.append(keypoints)
-                sequence = sequence[-30:]
+            while cap.isOpened() and frame_count < total_frames:
+                sequence = []
+                for _ in range(30):  # Read 30 frames
+                    ret, frame = cap.read()
+                    if not ret:
+                        break
+                    # Make detections
+                    image, results = mediapipe_detection(frame, holistic)
+                    keypoints = extract_keypoints(results)
+                    sequence.append(keypoints)
+                    frame_count += 1
 
                 if len(sequence) == 30:
                     res = langmodel.predict(np.expand_dims(sequence, axis=0))[0]
-                    prediction_result = res
-                    print(prediction_result) 
+                    prediction_result_array = res.tolist()
+                    max_index = np.argmax(prediction_result_array)
+                    predicted_answer = lang_answer_array[max_index]
+                    print("Predicted answer:", predicted_answer, "Actual answer:", actual_answer)
+
+                    if predicted_answer == actual_answer:
+                        correct_prediction_count += 1
+                
+                if correct_prediction_count >= 2:
                     break
 
-            cap.release()
-            cv2.destroyAllWindows()
+        cap.release()
+        cv2.destroyAllWindows()
 
-            prediction_result_array = prediction_result.tolist()
-            max_index = np.argmax(prediction_result_array)
-            predicted_answer = lang_answer_array[max_index]
+        print("Correct prediction count:", correct_prediction_count)
+        if correct_prediction_count >= 2:
+            final_answer = True
+        else:
+            final_answer = False
 
-            if predicted_answer == actual_answer:
-                final_answer = True
-            else:
-                final_answer = False
-
-            print("final_answer",final_answer,"predicted_answer",predicted_answer,"actual_answer",actual_answer)
-        # return jsonify("{name:hello}")
-        return jsonify({"result": final_answer,"predicted": predicted_answer})
+        print("Final answer:", final_answer, "Predicted answer:", predicted_answer, "Actual answer:", actual_answer)
+        return jsonify({"result": final_answer, "predicted": predicted_answer})
 
     except Exception as e:
         logging.error(str(e))
         return jsonify({"error": str(e)}), 400
+
+# @app.route('/detection/env/v2', methods=['POST'])
+# def env_detection():
+#     try:
+#         data = request.get_json()
+#         image_url = data['image_url']
+#         actual_answer = data['answer']
+#         final_answer = True;
+
+#         # Download the image from the URL
+#         response = requests.get(image_url)
+
+#         if not response.content:
+#             raise ValueError("Empty image content")
+#         # Define the path to save the video
+#         download_folder = './downloads/'
+#         os.makedirs(download_folder, exist_ok=True)
+#         video_filename = f"video_{uuid.uuid4().hex[:5]}.mp4" 
+#         video_path = os.path.join(download_folder,f"video_{uuid.uuid4().hex[:5]}.mp4")
+#         with open(video_path, 'wb') as f:
+#             f.write(response.content)
+
+#         # Holistic Prediction
+#         cap = cv2.VideoCapture(video_path)
+#         sequence = []
+#         prediction_result = []
+#         prediction_result_array = []
+
+#         # Set mediapipe model
+#         with mp_holistic.Holistic(min_detection_confidence=0.5, min_tracking_confidence=0.5) as holistic:
+
+#             while cap.isOpened():
+
+#                 # Read feed
+#                 ret, frame = cap.read()
+
+#                 # Make detections
+#                 image, results = mediapipe_detection(frame, holistic)
+
+#                 keypoints = extract_keypoints(results)
+
+#                 sequence.append(keypoints)
+#                 sequence = sequence[-40:]
+
+#                 if len(sequence) == 40:
+#                     res = envmodel.predict(np.expand_dims(sequence, axis=0))[0]
+#                     prediction_result = res
+#                     print(prediction_result) 
+#                     break
+
+#             cap.release()
+#             cv2.destroyAllWindows()
+
+#             prediction_result_array = prediction_result.tolist()
+#             max_index = np.argmax(prediction_result_array)
+#             predicted_answer = env_answer_array[max_index]
+
+#             if predicted_answer == actual_answer:
+#                 final_answer = True
+#             else:
+#                 final_answer = False
+
+#             print("final_answer",final_answer,"predicted_answer",predicted_answer,"actual_answer",actual_answer)
+#         # return jsonify("{name:hello}")
+#         return jsonify({"result": final_answer,"predicted": predicted_answer})
+
+#     except Exception as e:
+#         logging.error(str(e))
+#         return jsonify({"error": str(e)}), 400
+
 
 @app.route('/detection/env/v2', methods=['POST'])
 def env_detection():
@@ -216,69 +293,74 @@ def env_detection():
         data = request.get_json()
         image_url = data['image_url']
         actual_answer = data['answer']
-        final_answer = True;
+        final_answer = True
+        correct_prediction_count = 0
 
         # Download the image from the URL
         response = requests.get(image_url)
 
         if not response.content:
             raise ValueError("Empty image content")
+
         # Define the path to save the video
         download_folder = './downloads/'
         os.makedirs(download_folder, exist_ok=True)
-        video_filename = f"video_{uuid.uuid4().hex[:5]}.mp4" 
-        video_path = os.path.join(download_folder,f"video_{uuid.uuid4().hex[:5]}.mp4")
+        video_filename = f"video_{uuid.uuid4().hex[:5]}.mp4"
+        video_path = os.path.join(download_folder, video_filename)
         with open(video_path, 'wb') as f:
             f.write(response.content)
 
         # Holistic Prediction
         cap = cv2.VideoCapture(video_path)
+        total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        frame_count = 0
         sequence = []
-        prediction_result = []
-        prediction_result_array = []
 
-        # Set mediapipe model
+        print("Total frames:", total_frames)
+
+        # Set up the Mediapipe model
+        mp_holistic = mp.solutions.holistic
         with mp_holistic.Holistic(min_detection_confidence=0.5, min_tracking_confidence=0.5) as holistic:
-
-            while cap.isOpened():
-
-                # Read feed
-                ret, frame = cap.read()
-
-                # Make detections
-                image, results = mediapipe_detection(frame, holistic)
-
-                keypoints = extract_keypoints(results)
-
-                sequence.append(keypoints)
-                sequence = sequence[-40:]
+            while cap.isOpened() and frame_count < total_frames:
+                sequence = []
+                for _ in range(40):  # Read 30 frames
+                    ret, frame = cap.read()
+                    if not ret:
+                        break
+                    # Make detections
+                    image, results = mediapipe_detection(frame, holistic)
+                    keypoints = extract_keypoints(results)
+                    sequence.append(keypoints)
+                    frame_count += 1
 
                 if len(sequence) == 40:
                     res = envmodel.predict(np.expand_dims(sequence, axis=0))[0]
-                    prediction_result = res
-                    print(prediction_result) 
+                    prediction_result_array = res.tolist()
+                    max_index = np.argmax(prediction_result_array)
+                    predicted_answer = env_answer_array[max_index]
+                    print("Predicted answer:", predicted_answer, "Actual answer:", actual_answer)
+
+                    if predicted_answer == actual_answer:
+                        correct_prediction_count += 1
+                
+                if correct_prediction_count >= 2:
                     break
 
-            cap.release()
-            cv2.destroyAllWindows()
+        cap.release()
+        cv2.destroyAllWindows()
 
-            prediction_result_array = prediction_result.tolist()
-            max_index = np.argmax(prediction_result_array)
-            predicted_answer = env_answer_array[max_index]
+        print("Correct prediction count:", correct_prediction_count)
+        if correct_prediction_count >= 2:
+            final_answer = True
+        else:
+            final_answer = False
 
-            if predicted_answer == actual_answer:
-                final_answer = True
-            else:
-                final_answer = False
-
-            print("final_answer",final_answer,"predicted_answer",predicted_answer,"actual_answer",actual_answer)
-        # return jsonify("{name:hello}")
-        return jsonify({"result": final_answer,"predicted": predicted_answer})
+        print("Final answer:", final_answer, "Predicted answer:", predicted_answer, "Actual answer:", actual_answer)
+        return jsonify({"result": final_answer, "predicted": predicted_answer})
 
     except Exception as e:
         logging.error(str(e))
         return jsonify({"error": str(e)}), 400
-
 
 @app.route('/detection/social/v2', methods=['POST'])
 def social_detection():
