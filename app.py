@@ -25,6 +25,8 @@ app = Flask(__name__)
 mathmodel = tf.keras.models.load_model("models/math.h5")
 langmodel = tf.keras.models.load_model("models/lang.h5")
 socialmodel = tf.keras.models.load_model("models/genskills.h5")
+M_0_4 = tf.keras.models.load_model("models/M_0_4.h5")
+M_5_9 = tf.keras.models.load_model("models/M_5_9.h5")
 envmodel = tf.keras.models.load_model("models/yas.h5")
 mp_holistic = mp.solutions.holistic # Holistic model
 mp_drawing = mp.solutions.drawing_utils # Drawing utilities
@@ -57,22 +59,15 @@ thresholdValue = 0.6
 
 #Answers array
 math_answer_array = ['1','2','3','4']
+M_0_4_answer_array = ['0','1','2','3','4']
+M_5_9_answer_array = ['5','6','7','8','9']
 # lang_answer_array = ['අ', 'ආ', 'ඇ','ඈ','ඉ','ඊ','උ','ඌ','එ','ඒ']
 # lang_answer_array = ['a', 'aa', 'ea', 'aee', 'e', 'ee', 'u', 'uu', 'ae', 'aee']
 lang_answer_array = ['a','aa','ea','e','ee','u','ae','aee']
 # env_answer_array = ['අලියා','පූසා','බල්ලා','ලේනා','ඇපල්','අඹ','මැංගුස්','අන්නාසි','ගස','තරුව']
 env_answer_array = ['elephant','cat','dog','squirrel','apple','mango','mongoose','pineapple','tree','star']
-# social_answer_array = ["ආයුබෝවන්",
-# "උපකාර කරන්න",
-# "එක්ඟයි",
-# "ඔබව සාදරයෙන් පිලිගන්නවා",
-# "කුසගින්න",
-# "පිපාසය",
-# "සුභ පැතුම්",
-# "ස්තූතී",
-# "හෙලෝ",
-# "හොඳයි"]
 social_answer_array=['Ayubowan', 'Isthuthi', 'Hello','Upakara_karanna','Ekagai']
+
 @app.route('/detection/math/v2', methods=['POST'])
 def math_detection():
     try:
@@ -100,11 +95,12 @@ def math_detection():
         prediction_result = []
         prediction_result_array = []
 
+
         # Set mediapipe model
         with mp_holistic.Holistic(min_detection_confidence=0.5, min_tracking_confidence=0.5) as holistic:
 
             while cap.isOpened():
-                print("start")
+               
                 # Read feed
                 ret, frame = cap.read()
 
@@ -114,10 +110,16 @@ def math_detection():
                 keypoints = extract_keypoints(results)
 
                 sequence.append(keypoints)
-                sequence = sequence[start_frame:]
+                # sequence = sequence[-30:]
 
-                if len(sequence) == 30:
-                    res = mathmodel.predict(np.expand_dims(sequence, axis=0))[0]
+                if len(sequence) == 90:
+                    sequence = sequence[60:90]
+
+                    if actual_answer == '0' or actual_answer == '1' or actual_answer == '2' or actual_answer == '3' or actual_answer == '4':
+                        print('exec 0-4')
+                        res = M_0_4.predict(np.expand_dims(sequence, axis=0))[0]
+                    else:
+                        res = M_5_9.predict(np.expand_dims(sequence, axis=0))[0]
                     prediction_result = res
                     print(prediction_result) 
                     break
@@ -127,13 +129,18 @@ def math_detection():
 
             prediction_result_array = prediction_result.tolist()
             max_index = np.argmax(prediction_result_array)
-            predicted_answer = math_answer_array[max_index]
+
+            if actual_answer == '0' or actual_answer == '1' or actual_answer == '2' or actual_answer == '3' or actual_answer == '4':
+                predicted_answer = M_0_4_answer_array[max_index]
+            else:
+                predicted_answer = M_5_9_answer_array[max_index]
 
             if predicted_answer == actual_answer:
                 final_answer = True
             else:
                 final_answer = False
 
+        print("final_answer",final_answer,"predicted_answer",predicted_answer,"actual_answer",actual_answer)
 
         # return jsonify("{name:hello}")
         return jsonify({"result": final_answer,"predicted": predicted_answer})
@@ -141,6 +148,7 @@ def math_detection():
     except Exception as e:
         logging.error(str(e))
         return jsonify({"error": str(e)}), 400
+
 
 @app.route('/detection/lang/v2', methods=['POST'])
 def lang_detection():
